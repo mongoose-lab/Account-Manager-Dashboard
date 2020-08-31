@@ -1,0 +1,53 @@
+# Script to show the monthly evolution of customer sales and conditions
+
+#set the working directory
+
+setwd("C:\\Users\\b3dd37\\Documents\\R\\R-4.0.2\\dashboard data\\test data")
+
+#import data from GSR
+#data will come in the form of a data frame with columns for date, company name/number/profits/etc
+
+SalesData <- read.csv("CustomerSales.csv", header = TRUE)
+
+#change header names 
+
+names(SalesData)[names(SalesData) == "X"] <- "Month/Year"
+names(SalesData)[names(SalesData) == "X.1"] <- "Customer Code"
+names(SalesData)[names(SalesData) == "X.2"] <- "Customer Name"
+names(SalesData)[names(SalesData) == "X.3"] <- "Product Code"
+
+
+#break up the customer codes from GSR to get two distinct columns for sales org and cust. number
+
+SalesOrgGSR <- substr(SalesData$`Customer Code`, 1, 6) # extract sales org info from GSR customer data
+SalesData <- cbind(SalesData, SalesOrgGSR) #bind to add the new column of GSR codes
+CustomerNumber <- substr(SalesData$`Customer Code`, 8, 16) # extract customer code info from GSR customer data
+SalesData <- cbind(SalesData, CustomerNumber) #bind to add the new column of GSR codes
+
+#import the file of account manager mapping taken from SAP
+#AccountManagers uses the SalesOrgSAP version
+
+AccountManagers <- read.csv("C:\\Users\\b3dd37\\Documents\\R\\R-4.0.2\\dashboard data\\test data\\AccountManagers.csv", header = TRUE, sep = ";")
+
+#edit the names so that headers match those from GSR data
+
+names(AccountManagers)[names(AccountManagers) == "Customer.Number"] <- "CustomerNumber"
+names(AccountManagers)[names(AccountManagers) == "Sales.Org"] <- "SalesOrgSAP"
+
+#upload the file which maps SalesOrgGSR code to SalesOrgSAP code
+
+SalesOrgMap <- read.csv("SalesOrgMapping.csv", header = TRUE, sep = ";")
+SalesOrgMap <- subset(SalesOrgMap, select = -c(X, X.1, X.2, X.3))
+
+#join the tables, to link the correct account manager to the correct account
+
+# merge Sales Org Mapping 
+
+SalesData <- merge(SalesData, SalesOrgMap, by = c("SalesOrgGSR"))
+
+#now we add the combination to get the account manager info, since the AM info is listed with the SalesOrgSAP mapping
+#need to merge on column combination
+
+SalesData <- merge(SalesData, AccountManagers, by = c("SalesOrgSAP", "CustomerNumber"))
+
+#this section of the code maps the account managers to the correct values of customer sales. we can use this code to see a breakdown of account manager performance per month and YTD
